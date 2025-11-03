@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 
 const WS_URL = 'ws://localhost:3001/signal';
@@ -18,10 +18,10 @@ function App() {
   const [passphrase, setPassphrase] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [peers, setPeers] = useState<Map<string, PeerConnection>>(new Map());
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   
   const wsRef = useRef<WebSocket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const myIdRef = useRef<string>(Math.random().toString(36).substring(7));
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
 
@@ -33,9 +33,9 @@ function App() {
     const peerConnection = new RTCPeerConnection(ICE_SERVERS);
     
     // Add local stream tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStreamRef.current!);
       });
     }
 
@@ -108,7 +108,7 @@ function App() {
         audio: true,
       });
       
-      setLocalStream(stream);
+      localStreamRef.current = stream;
       
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
@@ -224,7 +224,7 @@ function App() {
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     // Close all peer connections
     peersRef.current.forEach(peer => {
       peer.connection.close();
@@ -239,19 +239,19 @@ function App() {
     }
 
     // Stop local stream
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
     }
 
     setIsConnected(false);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
       handleDisconnect();
     };
-  }, []);
+  }, [handleDisconnect]);
 
   return (
     <div className="app">

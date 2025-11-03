@@ -1,8 +1,8 @@
-import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
+import type { IncomingMessage, ServerResponse } from 'http';
 
 const app = new Hono();
 
@@ -16,10 +16,21 @@ app.get('/', (c) => {
   return c.text('WebRTC Signaling Server');
 });
 
-const server = createServer();
-
-// Handle HTTP requests with Hono
-server.on('request', app.fetch as any);
+const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+  const request = new Request(url.toString(), {
+    method: req.method,
+    headers: req.headers as HeadersInit,
+  });
+  
+  const response = await app.fetch(request);
+  res.statusCode = response.status;
+  response.headers.forEach((value: string, key: string) => {
+    res.setHeader(key, value);
+  });
+  const body = await response.arrayBuffer();
+  res.end(Buffer.from(body));
+});
 
 // WebSocket server for signaling
 const wss = new WebSocketServer({ server, path: '/signal' });
