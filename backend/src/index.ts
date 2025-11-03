@@ -48,7 +48,8 @@ wss.on('connection', (ws: WebSocket) => {
         case 'join':
           // Join a room based on passphrase
           const room = data.room;
-          clientId = data.id;
+          const newClientId = data.id;
+          clientId = newClientId;
           currentRoom = room;
 
           if (!rooms.has(room)) {
@@ -56,22 +57,22 @@ wss.on('connection', (ws: WebSocket) => {
           }
 
           const roomClients = rooms.get(room)!;
-          roomClients.set(clientId, { ws, room, id: clientId });
+          roomClients.set(newClientId, { ws, room, id: newClientId });
 
-          console.log(`Client ${clientId} joined room ${room}. Total in room: ${roomClients.size}`);
+          console.log(`Client ${newClientId} joined room ${room}. Total in room: ${roomClients.size}`);
 
           // Notify other clients in the room
           roomClients.forEach((client) => {
-            if (client.id !== clientId) {
+            if (client.id !== newClientId) {
               client.ws.send(JSON.stringify({
                 type: 'user-joined',
-                userId: clientId,
+                userId: newClientId,
               }));
             }
           });
 
           // Send current users to the new client
-          const existingUsers = Array.from(roomClients.keys()).filter(id => id !== clientId);
+          const existingUsers = Array.from(roomClients.keys()).filter(id => id !== newClientId);
           ws.send(JSON.stringify({
             type: 'room-users',
             users: existingUsers,
